@@ -528,29 +528,24 @@ class SkyrimINIEditor:
             var.set(folder)
     
     def scan_ini_files(self) -> None:
-        """Scan configured directories for INI files."""
+        """Scan configured directories for INI files and populate the tree."""
         self.ini_files.clear()
-        self.file_tree.delete(*self.file_tree.get_children())
         self.status_bar.config(text="Scanning for INI files...")
         self.root.update()
-        
+
         # Scan game folder
         if self.config.game_path and os.path.exists(self.config.game_path):
-            game_node = self.file_tree.insert('', 'end', text='Game Folder', open=True)
-            count = self._scan_directory(self.config.game_path, 'game', game_node)
-            self.file_tree.item(game_node, text=f'Game Folder ({count} files)')
-        
+            self._scan_directory(self.config.game_path, 'game')
         # Scan documents folder
         if self.config.documents_path and os.path.exists(self.config.documents_path):
-            docs_node = self.file_tree.insert('', 'end', text='Documents Folder', open=True)
-            count = self._scan_directory(self.config.documents_path, 'documents', docs_node)
-            self.file_tree.item(docs_node, text=f'Documents Folder ({count} files)')
-        
+            self._scan_directory(self.config.documents_path, 'documents')
+
+        # After gathering ini_files, populate tree without filter
+        self.populate_file_tree()
         self.status_bar.config(text=f"Found {len(self.ini_files)} INI files")
     
-    def _scan_directory(self, path: str, source: str, parent_node) -> int:
-        """Recursively scan directory for INI files."""
-        count = 0
+    def _scan_directory(self, path: str, source: str) -> None:
+        """Recursively scan directory for INI files and append to list."""
         try:
             for root_dir, dirs, files in os.walk(path):
                 for filename in files:
@@ -559,55 +554,40 @@ class SkyrimINIEditor:
                         try:
                             ini_file = INIFile(filepath, source)
                             self.ini_files.append(ini_file)
-                            
-                            # Add to tree
-                            rel_path = os.path.relpath(filepath, path)
-                            display_name = f"{rel_path}"
-                            self.file_tree.insert(
-                                parent_node,
-                                'end',
-                                text=display_name,
-                                values=(len(self.ini_files) - 1,)  # Store index
-                            )
-                            count += 1
                         except Exception as e:
                             print(f"Error loading {filepath}: {e}")
         except Exception as e:
             print(f"Error scanning {path}: {e}")
-        
-        return count
     
     def filter_file_list(self) -> None:
-        """Filter file list based on search term."""
+        """Repopulate the file tree according to the filter term."""
         search_term = self.search_var.get().lower()
-        
-        for item in self.file_tree.get_children():
-            self._filter_tree_recursive(item, search_term)
+        self.populate_file_tree(search_term)
     
-    def _filter_tree_recursive(self, item, search_term: str) -> bool:
-        """Recursively filter tree items. Returns True if item should be visible."""
-        children = self.file_tree.get_children(item)
+    def populate_file_tree(self, search_term: str = "") -> None:
+        """Rebuild the INI file tree, filtering by search_term if provided.
+
+        Group entries under 'Game Folder' and 'Documents Folder'.
+        """
+        self.file_tree.delete(*self.file_tree.get_children())
         
-        if children:
-            # Parent node - check if any children match
-            for child in children:
-                self._filter_tree_recursive(child, search_term)
-            
-            # Always show parent nodes
-            return True
-        else:
-            # Leaf node - check if it matches search
-            text = self.file_tree.item(item, 'text').lower()
-            matches = not search_term or search_term in text
-            
-            if matches:
-                self.file_tree.item(item, tags=())
-            else:
-                self.file_tree.item(item, tags=('hidden',))
-                self.file_tree.detach(item)
-                return False
-            
-            return matches
+        def add_group(label: str, key: str, base_path: str):
+            files = []
+            for idx, ini in enumerate(self.ini_files):
+                if ini.source != key:
+                    continue
+                rel = os.path.relpath(ini.filepath, base_path)
+                if not search_term or search_term in rel.lower():
+                    files.append((idx, rel))
+            if files:
+                node = self.file_tree.insert('', 'end', text=f"{label} ({len(files)} files)", open=True)
+                for idx, rel in files:
+                    self.file_tree.insert(node, 'end', text=rel, values=(idx,))
+        
+        if self.config.game_path and os.path.exists(self.config.game_path):
+            add_group('Game Folder', 'game', self.config.game_path)
+        if self.config.documents_path and os.path.exists(self.config.documents_path):
+            add_group('Documents Folder', 'documents', self.config.documents_path)
     
     def search_in_files(self) -> None:
         """Search for keys or values across all INI files."""
