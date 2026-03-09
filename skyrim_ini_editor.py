@@ -13,7 +13,6 @@ Features:
 
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
-import configparser
 import json
 import os
 from typing import Dict, List, Tuple, Optional
@@ -53,63 +52,94 @@ class Config:
 
 
 class INIFile:
-    """Represents a parsed INI file with its metadata."""
+    """Represents a parsed INI file with its metadata.
+
+    The sections structure is an ordered mapping from section name to a list of
+    entries. Each entry is either a comment or a property. Comments are stored
+    verbatim so that the UI can display them in-place.
+
+    Entry formats:
+        {'type': 'comment', 'text': <comment text>}
+        {'type': 'property', 'key': <key>, 'value': <value>, 'comments': [<comments>]}
+    """
     
     def __init__(self, filepath: str, source: str):
         self.filepath = filepath
         self.filename = os.path.basename(filepath)
         self.source = source  # 'game' or 'documents'
-        self.sections: Dict[str, Dict[str, str]] = {}
+        # sections -> list of entries as described above
+        self.sections: Dict[str, List[Dict]] = {}
         self.modified = False
         self.parse()
     
     def parse(self) -> None:
-        """Parse the INI file, handling malformed content gracefully."""
+        """Parse the INI file, capturing comments and properties.
+
+        We always use manual parsing so that comments are preserved and placed
+        in the resulting data structure.
+        """
         try:
-            # Read raw content first
             with open(self.filepath, 'r', encoding='utf-8', errors='ignore') as f:
                 content = f.read()
-            
-            # Try standard configparser first
-            parser = configparser.ConfigParser()
-            parser.optionxform = str  # Preserve case
-            
-            try:
-                parser.read_string(content)
-                for section in parser.sections():
-                    self.sections[section] = dict(parser.items(section))
-            except configparser.Error:
-                # Fall back to manual parsing for malformed files
-                self._manual_parse(content)
-                
+            self._manual_parse(content)
         except Exception as e:
             print(f"Error parsing {self.filepath}: {e}")
     
     def _manual_parse(self, content: str) -> None:
-        """Manual INI parsing for malformed files."""
+        """Manual INI parsing that preserves comments and order."""
         current_section = "DEFAULT"
-        self.sections[current_section] = {}
+        self.sections = {current_section: []}
+        comment_acc: List[str] = []
         
-        for line in content.splitlines():
-            line = line.strip()
+        for raw_line in content.splitlines():
+            line = raw_line.rstrip('\n')
+            stripped = line.strip()
             
-            # Skip empty lines and comments
-            if not line or line.startswith(';') or line.startswith('#'):
+            # Comment line
+            if stripped.startswith(';') or stripped.startswith('#'):
+                comment_acc.append(stripped)
+                continue
+            
+            # Empty line
+            if not stripped:
+                comment_acc.append('')
                 continue
             
             # Section header
-            if line.startswith('[') and line.endswith(']'):
-                current_section = line[1:-1].strip()
+            if stripped.startswith('[') and stripped.endswith(']'):
+                # flush any accumulated comments as standalone entries
+                if comment_acc:
+                    for c in comment_acc:
+                        self.sections[current_section].append({'type': 'comment', 'text': c})
+                    comment_acc = []
+                current_section = stripped[1:-1].strip()
                 if current_section not in self.sections:
-                    self.sections[current_section] = {}
+                    self.sections[current_section] = []
+                continue
+            
             # Key-value pair
-            elif '=' in line:
-                key, _, value = line.partition('=')
+            if '=' in line:
+                key, value = line.split('=', 1)
                 key = key.strip()
                 value = value.strip()
-                if key:
-                    self.sections[current_section][key] = value
-    
+                entry = {
+                    'type': 'property',
+                    'key': key,
+                    'value': value,
+                    'comments': comment_acc.copy()
+                }
+                self.sections[current_section].append(entry)
+                comment_acc = []
+                continue
+            
+            # Anything else (malformed) treat as comment
+            comment_acc.append(line)
+        
+        # leftover comments
+        if comment_acc:
+            for c in comment_acc:
+                self.sections[current_section].append({'type': 'comment', 'text': c})
+        
     def save(self) -> bool:
         """Save changes back to the INI file."""
         try:
@@ -133,18 +163,25 @@ class INIFile:
                 if stripped.startswith('[') and stripped.endswith(']'):
                     current_section = stripped[1:-1].strip()
                     new_lines.append(line)
+                    continue
                 # Key-value pair
-                elif '=' in stripped:
+                if '=' in stripped:
                     key = stripped.split('=')[0].strip()
-                    if current_section in self.sections and key in self.sections[current_section]:
-                        # Update with new value, preserving indentation
-                        indent = len(line) - len(line.lstrip())
-                        new_value = self.sections[current_section][key]
-                        new_lines.append(' ' * indent + f"{key}={new_value}\n")
-                    else:
+                    # search in entries for this key
+                    updated = False
+                    if current_section in self.sections:
+                        for entry in self.sections[current_section]:
+                            if entry.get('type') == 'property' and entry.get('key') == key:
+                                indent = len(line) - len(line.lstrip())
+                                new_value = entry['value']
+                                new_lines.append(' ' * indent + f"{key}={new_value}\n")
+                                updated = True
+                                break
+                    if not updated:
                         new_lines.append(line)
-                else:
-                    new_lines.append(line)
+                    continue
+                
+                new_lines.append(line)
             
             # Write back to file
             with open(self.filepath, 'w', encoding='utf-8') as f:
@@ -158,11 +195,17 @@ class INIFile:
             return False
     
     def set_value(self, section: str, key: str, value: str) -> None:
-        """Update a value and mark as modified."""
-        if section in self.sections and key in self.sections[section]:
-            if self.sections[section][key] != value:
-                self.sections[section][key] = value
-                self.modified = True
+        """Update a property's value and mark file as modified.
+
+        This searches the entries list for the given key.
+        """
+        if section in self.sections:
+            for entry in self.sections[section]:
+                if entry.get('type') == 'property' and entry.get('key') == key:
+                    if entry.get('value') != value:
+                        entry['value'] = value
+                        self.modified = True
+                    break
 
 
 class PropertyWidget:
@@ -581,16 +624,19 @@ class SkyrimINIEditor:
         results = []
         
         for ini_file in self.ini_files:
-            for section, properties in ini_file.sections.items():
-                for key, value in properties.items():
-                    if search_term in key.lower() or search_term in value.lower():
-                        results.append({
-                            'file': ini_file.filename,
-                            'path': ini_file.filepath,
-                            'section': section,
-                            'key': key,
-                            'value': value
-                        })
+            for section, entries in ini_file.sections.items():
+                for entry in entries:
+                    if entry.get('type') == 'property':
+                        key = entry['key']
+                        value = entry.get('value', '')
+                        if search_term in key.lower() or search_term in value.lower():
+                            results.append({
+                                'file': ini_file.filename,
+                                'path': ini_file.filepath,
+                                'section': section,
+                                'key': key,
+                                'value': value
+                            })
         
         # Show results dialog
         self.show_search_results(search_term, results)
@@ -690,38 +736,61 @@ class SkyrimINIEditor:
             ).pack(padx=10, pady=20)
             return
         
-        for section_name, properties in ini_file.sections.items():
-            if not properties:
+        for section_name, entries in ini_file.sections.items():
+            if not entries:
                 continue
             
             # Create collapsible section
             section_frame = CollapsibleFrame(self.editor_content, section_name)
             section_frame.pack(fill='x', padx=5, pady=5)
             
-            # Add properties
-            for row, (key, value) in enumerate(properties.items()):
-                prop_frame = ttk.Frame(section_frame.content)
-                prop_frame.pack(fill='x', padx=5, pady=2)
-                
-                # Key label
-                key_label = ttk.Label(
-                    prop_frame,
-                    text=f"{key}:",
-                    width=30,
-                    anchor='e'
-                )
-                key_label.pack(side='left', padx=5)
-                
-                # Value widget
-                widget, getter = PropertyWidget.create_widget(
-                    prop_frame,
-                    value,
-                    lambda s=section_name, k=key: self.on_property_change(s, k)
-                )
-                widget.pack(side='left', padx=5)
-                
-                # Store getter
-                self.property_widgets[(section_name, key)] = getter
+            # Add entries (comments & properties)
+            for entry in entries:
+                if entry.get('type') == 'comment':
+                    # display comment label
+                    comment_text = entry.get('text', '')
+                    lbl = ttk.Label(
+                        section_frame.content,
+                        text=comment_text,
+                        font=('Arial', 9, 'italic'),
+                        foreground='gray'
+                    )
+                    lbl.pack(fill='x', padx=10, pady=1)
+                    continue
+                if entry.get('type') == 'property':
+                    # show any comments associated with this property
+                    for c in entry.get('comments', []):
+                        lbl = ttk.Label(
+                            section_frame.content,
+                            text=c,
+                            font=('Arial', 9, 'italic'),
+                            foreground='gray'
+                        )
+                        lbl.pack(fill='x', padx=10, pady=1)
+                    key = entry['key']
+                    value = entry.get('value', '')
+                    prop_frame = ttk.Frame(section_frame.content)
+                    prop_frame.pack(fill='x', padx=5, pady=2)
+                    
+                    # Key label
+                    key_label = ttk.Label(
+                        prop_frame,
+                        text=f"{key}:",
+                        width=30,
+                        anchor='e'
+                    )
+                    key_label.pack(side='left', padx=5)
+                    
+                    # Value widget
+                    widget, getter = PropertyWidget.create_widget(
+                        prop_frame,
+                        value,
+                        lambda s=section_name, k=key: self.on_property_change(s, k)
+                    )
+                    widget.pack(side='left', padx=5)
+                    
+                    # Store getter
+                    self.property_widgets[(section_name, key)] = getter
         
         self.status_bar.config(text=f"Loaded {ini_file.filepath}")
     

@@ -46,6 +46,12 @@
 - [ ] Value widgets are properly aligned
 - [ ] Empty sections are handled gracefully
 
+### Property Editor - Comments
+- [ ] Comments above a property appear in the UI in the same order
+- [ ] Standalone comments (not attached to a property) display in the section
+- [ ] Comments are styled differently (italic/gray) to distinguish them
+- [ ] Comments remain after saving and reloading
+
 ### Change Tracking
 - [ ] Modifying a value marks file as modified
 - [ ] "● Modified" indicator appears in red

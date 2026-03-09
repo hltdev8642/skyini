@@ -8,6 +8,7 @@ A comprehensive, production-quality GUI application for editing Skyrim configura
 - **Path Configuration**: Set and persist game installation and documents folder paths
 - **Automatic INI Detection**: Recursively scans both directories for all `.ini` files
 - **Intelligent Parsing**: Handles both well-formed and malformed INI files gracefully
+- **Comment Support**: Parses comments and displays them inline above settings in the editor
 - **Type-Aware Editing**: Automatically creates appropriate widgets based on value types:
   - ✓ Checkboxes for boolean values (true/false, 1/0, yes/no, on/off)
   - ✓ Spinboxes for numeric values (integers and floats)

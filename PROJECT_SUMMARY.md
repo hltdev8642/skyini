@@ -63,6 +63,7 @@
      - Checkboxes for booleans (true/false, 1/0, yes/no, on/off)
      - Spinboxes for numbers (int and float)
      - Text entries for strings
+     - **Comments shown inline** above corresponding settings
    - Organized by collapsible sections
    - Clean, professional layout
 
@@ -122,6 +123,7 @@
   - [x] true/false values → checkbox
   - [x] Numeric values → spinbox or validated numeric entry
   - [x] All other values → text entry field
+- [x] Parse and display inline comments above corresponding properties
 - [x] Organize properties by section headers (collapsible)
 - [x] Track changes as "unsaved" until user explicitly saves
 - [x] Save button writes changes back to original .ini file, preserving formatting

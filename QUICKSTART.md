@@ -78,6 +78,7 @@ These files are typically found in the Documents folder.
 - **Boolean values** like `bFull Screen=false` → Checkbox
 - **Numbers** like `iDifficulty=2` → Spinbox
 - **Text** like `sLanguage=ENGLISH` → Text entry
+- **Comments** above settings are displayed exactly where they appear in the file
 
 ### Search Capabilities
 - **Filter files**: Type in the search box to instantly filter the file list
