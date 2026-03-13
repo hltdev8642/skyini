@@ -1,0 +1,13 @@
+{
+  "name": "skyrim-ini-editor-node",
+  "version": "1.0.0",
+  "description": "Skyrim INI Editor (Node/Electron version)",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^26.0.0"
+  },
+  "dependencies": {}
+}

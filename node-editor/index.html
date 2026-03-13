@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Skyrim INI Editor (Node)</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Skyrim INI Editor (Node/Electron)</h1>
+      <div class="header-actions">
+        <button id="btnSelectGame">Select Skyrim Folder</button>
+        <button id="btnSelectDocs">Select Documents Folder</button>
+        <button id="btnRescan">Rescan INI Files</button>
+      </div>
+    </header>
+
+    <section class="layout">
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <input id="filter" placeholder="Filter files..." />
+          <button id="btnClearFilter" title="Clear filter">✕</button>
+          <button id="btnToggleFileView" title="Toggle tree/flat file view">Tree</button>
+        </div>
+        <div class="sidebar-body">
+          <ul id="fileList" class="file-list" aria-label="INI files"></ul>
+        </div>
+        <div class="sidebar-footer">
+          <label>Exclude (name match):</label>
+          <input id="excludeInput" placeholder="e.g. SKSE.ini" />
+          <button id="btnAddExclude">Add</button>
+          <ul id="excludeList" class="exclude-list"></ul>
+        </div>
+      </aside>
+
+      <main class="editor">
+        <div class="editor-header">
+          <h2 id="currentFileName">No file selected</h2>
+          <button id="btnSave" disabled>Save</button>
+          <button id="btnToggleView" disabled>Toggle Raw/Properties</button>
+        </div>
+
+        <div class="editor-body">
+          <div id="inspector" class="inspector"></div>
+          <textarea id="rawText" class="raw" spellcheck="false" aria-label="Raw INI content"></textarea>
+        </div>
+      </main>
+    </section>
+
+    <footer>
+      <p class="status" id="status">Ready.</p>
+    </footer>
+
+    <script src="renderer.js"></script>
+  </body>
+</html>

@@ -187,3 +187,32 @@ This is a single-file application created as a development tool. Free to use and
 - Robust error handling
 - Type-aware property editing
 - Collapsible sections
+
+---
+
+## Node.js (Electron) Version
+
+A companion Electron-based version of this editor is available under `node-editor/`.
+
+### Run it
+
+1. Install dependencies:
+   ```bash
+   cd node-editor
+   npm install
+   ```
+2. Start the app:
+   ```bash
+   npm start
+   ```
+
+### Features
+
+- Uses the same folder scanning and INI reading/saving concepts as the Python version
+- Offers a simple file browser + raw editor + lightweight settings
+- Includes a file name exclusion list similar to the Python version
+
+### Notes
+
+- Requires Node.js + npm
+- The editor is built with Electron and uses the native file dialogs
