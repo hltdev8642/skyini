@@ -7,8 +7,16 @@
 python skyrim_ini_editor.py
 ```
 
-### Method 2: Windows Double-Click
-Simply double-click `skyrim_ini_editor.py` if Python is installed and `.py` files are associated with Python.
+### Method 2: Modern Look (optional)
+If you want a more modern themed UI (uses `ttkbootstrap` if installed):
+```bash
+python skyrim_ini_editor_modern.py
+```
+
+> ⚠️ If you are using Python 3.15 or newer, `ttkbootstrap` may fail to install (it depends on `Pillow`, which currently lacks prebuilt wheels for Python 3.15). If that happens, you can still run the modern launcher—it will simply fall back to the default `ttk` theme.
+
+### Method 3: Windows Double-Click
+Simply double-click `skyrim_ini_editor.py` (or `skyrim_ini_editor_modern.py`) if Python is installed and `.py` files are associated with Python.
 
 ## Testing with Sample File
 

@@ -32,7 +32,22 @@ A comprehensive, production-quality GUI application for editing Skyrim configura
 
 ### Requirements
 - Python 3.6 or higher (tkinter included in standard Python distribution)
-- No additional packages required! Uses only Python standard library.
+
+### Optional (Modern UI)
+- For the modern-themed launcher, install `ttkbootstrap` (optional):
+  ```bash
+  pip install ttkbootstrap
+  ```
+
+> ⚠️ **Python 3.15+ compatibility note:**
+> `ttkbootstrap` depends on `Pillow`, and prebuilt Pillow wheels are not yet available for Python 3.15.
+> If you are using Python 3.15, the install may fail due to missing zlib build dependencies.
+>
+> **Workarounds:**
+> - Use Python 3.13/3.14 instead (recommended)
+> - Or keep using the classic UI (`skyrim_ini_editor.py`) or the modern launcher without `ttkbootstrap` (it will fall back to the default ttk theme).
+
+The application still works without `ttkbootstrap`; `skyrim_ini_editor_modern.py` will simply use the default ttk theme instead.
 
 ### Quick Start
 
@@ -41,6 +56,11 @@ A comprehensive, production-quality GUI application for editing Skyrim configura
 2. **Run the application**:
    ```bash
    python skyrim_ini_editor.py
+   ```
+
+   For a more modern-styled UI (uses ttk themes and optional `ttkbootstrap` if installed):
+   ```bash
+   python skyrim_ini_editor_modern.py
    ```
    
    Or on Windows, double-click the file if `.py` files are associated with Python.
