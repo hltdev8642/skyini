@@ -11,6 +11,7 @@ Features:
 - Graceful error handling
 """
 
+import re
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import json
@@ -399,6 +400,16 @@ class SkyrimINIEditor:
             command=self.search_in_files
         ).pack(side='left')
         
+        # Raw view toggle (shows/edit raw INI text)
+        self.raw_view_var = tk.BooleanVar(value=False)
+        raw_view_toggle = ttk.Checkbutton(
+            search_frame,
+            text="Raw view",
+            variable=self.raw_view_var,
+            command=self.update_view_mode
+        )
+        raw_view_toggle.pack(side='left', padx=5)
+        
         # File list
         list_frame = ttk.Frame(left_panel)
         list_frame.pack(fill='both', expand=True, padx=5, pady=5)
@@ -462,6 +473,19 @@ class SkyrimINIEditor:
         self.editor_content.bind('<Configure>', self.on_editor_configure)
         self.editor_canvas.bind('<Configure>', self.on_canvas_configure)
         
+        # Raw text editor (hidden unless raw view enabled)
+        self.raw_frame = ttk.Frame(editor_frame)
+        self.raw_text = tk.Text(self.raw_frame, wrap='none', undo=True)
+        self.raw_text.bind('<KeyRelease>', lambda e: self._highlight_raw_text())
+        self.raw_scrollbar = ttk.Scrollbar(
+            self.raw_frame,
+            orient='vertical',
+            command=self.raw_text.yview
+        )
+        self.raw_text.configure(yscrollcommand=self.raw_scrollbar.set)
+        self.raw_text.pack(side='left', fill='both', expand=True)
+        self.raw_scrollbar.pack(side='right', fill='y')
+        
         # Status bar
         self.status_bar = ttk.Label(
             self.root,
@@ -478,6 +502,63 @@ class SkyrimINIEditor:
     def on_canvas_configure(self, event) -> None:
         """Update content width when canvas is resized."""
         self.editor_canvas.itemconfig(self.editor_window, width=event.width)
+    
+    def _load_raw_text(self) -> None:
+        """Load the raw INI text into the editor and apply syntax highlighting."""
+        if not self.current_file:
+            return
+        try:
+            with open(self.current_file.filepath, 'r', encoding='utf-8', errors='ignore') as f:
+                content = f.read()
+        except Exception:
+            content = ''
+        self.raw_text.delete('1.0', 'end')
+        self.raw_text.insert('1.0', content)
+        self._highlight_raw_text()
+    
+    def _highlight_raw_text(self) -> None:
+        """Apply simple INI syntax highlighting to the raw text view."""
+        self.raw_text.tag_remove('comment', '1.0', 'end')
+        self.raw_text.tag_remove('section', '1.0', 'end')
+        self.raw_text.tag_remove('key', '1.0', 'end')
+        self.raw_text.tag_remove('value', '1.0', 'end')
+        
+        self.raw_text.tag_configure('comment', foreground='gray')
+        self.raw_text.tag_configure('section', foreground='blue')
+        self.raw_text.tag_configure('key', foreground='darkgreen')
+        self.raw_text.tag_configure('value', foreground='black')
+        
+        content = self.raw_text.get('1.0', 'end')
+        for match in re.finditer(r'^(\s*[;#].*)$', content, re.MULTILINE):
+            start = f"1.0+{match.start()}c"
+            end = f"1.0+{match.end()}c"
+            self.raw_text.tag_add('comment', start, end)
+        for match in re.finditer(r'^(\s*\[.*?\])$', content, re.MULTILINE):
+            start = f"1.0+{match.start()}c"
+            end = f"1.0+{match.end()}c"
+            self.raw_text.tag_add('section', start, end)
+        for match in re.finditer(r'^(\s*[^=\n]+?)\s*(=)\s*(.*)$', content, re.MULTILINE):
+            key_start = f"1.0+{match.start(1)}c"
+            key_end = f"1.0+{match.end(1)}c"
+            val_start = f"1.0+{match.start(3)}c"
+            val_end = f"1.0+{match.end(3)}c"
+            self.raw_text.tag_add('key', key_start, key_end)
+            self.raw_text.tag_add('value', val_start, val_end)
+    
+    def update_view_mode(self) -> None:
+        """Switch between property editor and raw text editor."""
+        raw_view = self.raw_view_var.get() if hasattr(self, 'raw_view_var') else False
+        if raw_view:
+            # hide property editor canvas
+            self.editor_canvas.pack_forget()
+            # show raw editor
+            self.raw_frame.pack(side='left', fill='both', expand=True)
+            self._load_raw_text()
+        else:
+            # hide raw editor
+            self.raw_frame.pack_forget()
+            # show property editor canvas
+            self.editor_canvas.pack(side='left', fill='both', expand=True)
     
     def configure_paths(self) -> None:
         """Show dialog to configure paths."""
@@ -765,64 +846,66 @@ class SkyrimINIEditor:
                 text="No properties found in this file",
                 font=('Arial', 10, 'italic')
             ).pack(padx=10, pady=20)
-            return
-        
-        for section_name, entries in ini_file.sections.items():
-            if not entries:
-                continue
-            
-            # Create collapsible section
-            section_frame = CollapsibleFrame(self.editor_content, section_name)
-            section_frame.pack(fill='x', padx=5, pady=5)
-            
-            # Add entries (comments & properties)
-            for entry in entries:
-                if entry.get('type') == 'comment':
-                    # display comment label
-                    comment_text = entry.get('text', '')
-                    lbl = ttk.Label(
-                        section_frame.content,
-                        text=comment_text,
-                        font=('Arial', 9, 'italic'),
-                        foreground='gray'
-                    )
-                    lbl.pack(fill='x', padx=10, pady=1)
+        else:
+            for section_name, entries in ini_file.sections.items():
+                if not entries:
                     continue
-                if entry.get('type') == 'property':
-                    # show any comments associated with this property
-                    for c in entry.get('comments', []):
+                
+                # Create collapsible section
+                section_frame = CollapsibleFrame(self.editor_content, section_name)
+                section_frame.pack(fill='x', padx=5, pady=5)
+                
+                # Add entries (comments & properties)
+                for entry in entries:
+                    if entry.get('type') == 'comment':
+                        # display comment label
+                        comment_text = entry.get('text', '')
                         lbl = ttk.Label(
                             section_frame.content,
-                            text=c,
+                            text=comment_text,
                             font=('Arial', 9, 'italic'),
                             foreground='gray'
                         )
                         lbl.pack(fill='x', padx=10, pady=1)
-                    key = entry['key']
-                    value = entry.get('value', '')
-                    prop_frame = ttk.Frame(section_frame.content)
-                    prop_frame.pack(fill='x', padx=5, pady=2)
-                    
-                    # Key label
-                    key_label = ttk.Label(
-                        prop_frame,
-                        text=f"{key}:",
-                        width=30,
-                        anchor='e'
-                    )
-                    key_label.pack(side='left', padx=5)
-                    
-                    # Value widget
-                    widget, getter = PropertyWidget.create_widget(
-                        prop_frame,
-                        value,
-                        lambda s=section_name, k=key: self.on_property_change(s, k)
-                    )
-                    widget.pack(side='left', padx=5)
-                    
-                    # Store getter
-                    self.property_widgets[(section_name, key)] = getter
+                        continue
+                    if entry.get('type') == 'property':
+                        # show any comments associated with this property
+                        for c in entry.get('comments', []):
+                            lbl = ttk.Label(
+                                section_frame.content,
+                                text=c,
+                                font=('Arial', 9, 'italic'),
+                                foreground='gray'
+                            )
+                            lbl.pack(fill='x', padx=10, pady=1)
+                        key = entry['key']
+                        value = entry.get('value', '')
+                        prop_frame = ttk.Frame(section_frame.content)
+                        prop_frame.pack(fill='x', padx=5, pady=2)
+                        
+                        # Key label
+                        key_label = ttk.Label(
+                            prop_frame,
+                            text=f"{key}:",
+                            width=30,
+                            anchor='e'
+                        )
+                        key_label.pack(side='left', padx=5)
+                        
+                        # Value widget
+                        widget, getter = PropertyWidget.create_widget(
+                            prop_frame,
+                            value,
+                            lambda s=section_name, k=key: self.on_property_change(s, k)
+                        )
+                        widget.pack(side='left', padx=5)
+                        
+                        # Store getter
+                        self.property_widgets[(section_name, key)] = getter
         
+        # Also load raw text for raw view
+        self._load_raw_text()
+        self.update_view_mode()
         self.status_bar.config(text=f"Loaded {ini_file.filepath}")
     
     def on_property_change(self, section: str, key: str) -> None:
@@ -847,6 +930,34 @@ class SkyrimINIEditor:
         """Save the current file."""
         if not self.current_file:
             messagebox.showinfo("No File", "No file is currently open.", parent=self.root)
+            return
+
+        raw_view = self.raw_view_var.get() if hasattr(self, 'raw_view_var') else False
+        
+        if raw_view:
+            # Save raw text directly
+            text = self.raw_text.get('1.0', 'end')
+            try:
+                with open(self.current_file.filepath, 'w', encoding='utf-8') as f:
+                    f.write(text)
+                # Reparse so UI stays in sync
+                self.current_file.parse()
+                self.current_file.modified = False
+                self.update_modified_indicator()
+                self.status_bar.config(text=f"Saved {self.current_file.filepath}")
+                messagebox.showinfo(
+                    "Success",
+                    f"Successfully saved {self.current_file.filename}",
+                    parent=self.root
+                )
+                # Reload file so property editor reflects current file
+                self.load_file(self.current_file)
+            except Exception as e:
+                messagebox.showerror(
+                    "Error",
+                    f"Failed to save {self.current_file.filename}: {e}",
+                    parent=self.root
+                )
             return
         
         if not self.current_file.modified:
