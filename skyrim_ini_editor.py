@@ -381,6 +381,16 @@ class SkyrimINIEditor:
         search_entry = ttk.Entry(search_frame, textvariable=self.search_var)
         search_entry.pack(side='left', fill='x', expand=True, padx=5)
         
+        # Flat / Tree view toggle
+        self.flat_view_var = tk.BooleanVar(value=False)
+        flat_view_toggle = ttk.Checkbutton(
+            search_frame,
+            text="Flat view",
+            variable=self.flat_view_var,
+            command=self.filter_file_list
+        )
+        flat_view_toggle.pack(side='left', padx=5)
+        
         # Search in files button
         ttk.Button(
             search_frame,
@@ -567,9 +577,28 @@ class SkyrimINIEditor:
     def populate_file_tree(self, search_term: str = "") -> None:
         """Rebuild the INI file tree, filtering by search_term if provided.
 
-        Group entries under 'Game Folder' and 'Documents Folder'.
+        Supports two modes:
+        - Tree view (grouped by source folder)
+        - Flat view (all files listed in a single list)
         """
         self.file_tree.delete(*self.file_tree.get_children())
+        flat_view = self.flat_view_var.get() if hasattr(self, 'flat_view_var') else False
+        
+        if flat_view:
+            # Flat list: show all matching .ini files together, just like original view.
+            for idx, ini in enumerate(self.ini_files):
+                base_path = None
+                if ini.source == 'game':
+                    base_path = self.config.game_path
+                elif ini.source == 'documents':
+                    base_path = self.config.documents_path
+                if not base_path or not os.path.exists(base_path):
+                    base_path = os.path.dirname(ini.filepath)
+                rel = os.path.relpath(ini.filepath, base_path)
+                if search_term and search_term not in rel.lower():
+                    continue
+                self.file_tree.insert('', 'end', text=rel, values=(idx,))
+            return
         
         def add_group(label: str, key: str, base_path: str):
             files = []
@@ -579,10 +608,32 @@ class SkyrimINIEditor:
                 rel = os.path.relpath(ini.filepath, base_path)
                 if not search_term or search_term in rel.lower():
                     files.append((idx, rel))
-            if files:
-                node = self.file_tree.insert('', 'end', text=f"{label} ({len(files)} files)", open=True)
-                for idx, rel in files:
-                    self.file_tree.insert(node, 'end', text=rel, values=(idx,))
+            if not files:
+                return
+            
+            root_node = self.file_tree.insert('', 'end', text=f"{label} ({len(files)} files)", open=True)
+            # Build a nested tree based on path segments
+            nodes = {(): root_node}
+            for idx, rel in sorted(files, key=lambda x: x[1].lower()):
+                parts = rel.replace('\\', '/').split('/')
+                parent_key = ()
+                for part in parts[:-1]:
+                    parent_key = parent_key + (part,)
+                    if parent_key not in nodes:
+                        nodes[parent_key] = self.file_tree.insert(
+                            nodes[parent_key[:-1]],
+                            'end',
+                            text=part,
+                            open=False
+                        )
+                # Insert file leaf
+                file_key = tuple(parts)
+                self.file_tree.insert(
+                    nodes[parent_key],
+                    'end',
+                    text=parts[-1],
+                    values=(idx,)
+                )
         
         if self.config.game_path and os.path.exists(self.config.game_path):
             add_group('Game Folder', 'game', self.config.game_path)
