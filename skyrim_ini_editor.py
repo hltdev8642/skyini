@@ -26,6 +26,7 @@ class Config:
         self.config_file = config_file
         self.game_path: str = ""
         self.documents_path: str = ""
+        self.exclusions: List[str] = []
         self.load()
     
     def load(self) -> None:
@@ -36,6 +37,7 @@ class Config:
                     data = json.load(f)
                     self.game_path = data.get('game_path', '')
                     self.documents_path = data.get('documents_path', '')
+                    self.exclusions = data.get('exclusions', []) or []
         except Exception as e:
             print(f"Error loading config: {e}")
     
@@ -44,7 +46,8 @@ class Config:
         try:
             data = {
                 'game_path': self.game_path,
-                'documents_path': self.documents_path
+                'documents_path': self.documents_path,
+                'exclusions': self.exclusions,
             }
             with open(self.config_file, 'w', encoding='utf-8') as f:
                 json.dump(data, f, indent=2)
@@ -564,7 +567,7 @@ class SkyrimINIEditor:
         """Show dialog to configure paths."""
         dialog = tk.Toplevel(self.root)
         dialog.title("Configure Paths")
-        dialog.geometry("600x200")
+        dialog.geometry("700x300")
         dialog.transient(self.root)
         dialog.grab_set()
         
@@ -593,14 +596,42 @@ class SkyrimINIEditor:
             text="Browse",
             command=lambda: self.browse_folder(docs_var)
         ).grid(row=1, column=2, padx=10, pady=10)
+
+        # Exclusions
+        ttk.Label(dialog, text="Exclude filenames:").grid(
+            row=2, column=0, padx=10, pady=10, sticky='nw'
+        )
+        self.exclusion_listbox = tk.Listbox(dialog, height=4)
+        self.exclusion_listbox.grid(row=2, column=1, sticky='nsew', padx=10, pady=10)
+        for excl in self.config.exclusions:
+            self.exclusion_listbox.insert('end', excl)
+        
+        exclusion_frame = ttk.Frame(dialog)
+        exclusion_frame.grid(row=2, column=2, padx=10, pady=10, sticky='n')
+        self.exclusion_var = tk.StringVar()
+        ttk.Entry(exclusion_frame, textvariable=self.exclusion_var, width=20).pack(pady=2)
+        ttk.Button(
+            exclusion_frame,
+            text='+',
+            width=3,
+            command=self._add_exclusion
+        ).pack(pady=2)
+        ttk.Button(
+            exclusion_frame,
+            text='–',
+            width=3,
+            command=self._remove_exclusion
+        ).pack(pady=2)
         
         # Buttons
         button_frame = ttk.Frame(dialog)
-        button_frame.grid(row=2, column=0, columnspan=3, pady=20)
+        button_frame.grid(row=3, column=0, columnspan=3, pady=20)
         
         def save_paths():
             self.config.game_path = game_var.get()
             self.config.documents_path = docs_var.get()
+            # Update exclusions list
+            self.config.exclusions = [self.exclusion_listbox.get(i) for i in range(self.exclusion_listbox.size())]
             self.config.save()
             dialog.destroy()
             self.scan_ini_files()
@@ -617,6 +648,23 @@ class SkyrimINIEditor:
         folder = filedialog.askdirectory(initialdir=var.get() or os.path.expanduser('~'))
         if folder:
             var.set(folder)
+
+    def _add_exclusion(self) -> None:
+        """Add an exclusion pattern to the list."""
+        val = self.exclusion_var.get().strip()
+        if not val:
+            return
+        existing = [self.exclusion_listbox.get(i) for i in range(self.exclusion_listbox.size())]
+        if val not in existing:
+            self.exclusion_listbox.insert('end', val)
+            self.exclusion_var.set('')
+
+    def _remove_exclusion(self) -> None:
+        """Remove selected exclusion pattern."""
+        selection = self.exclusion_listbox.curselection()
+        if not selection:
+            return
+        self.exclusion_listbox.delete(selection[0])
     
     def scan_ini_files(self) -> None:
         """Scan configured directories for INI files and populate the tree."""
@@ -637,10 +685,13 @@ class SkyrimINIEditor:
     
     def _scan_directory(self, path: str, source: str) -> None:
         """Recursively scan directory for INI files and append to list."""
+        exclusions = {e.lower() for e in (self.config.exclusions or [])}
         try:
             for root_dir, dirs, files in os.walk(path):
                 for filename in files:
                     if filename.lower().endswith('.ini'):
+                        if filename.lower() in exclusions:
+                            continue
                         filepath = os.path.join(root_dir, filename)
                         try:
                             ini_file = INIFile(filepath, source)

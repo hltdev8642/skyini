@@ -1,4 +1,10 @@
 {
   "game_path": "H:/_STEAM/The Elder Scrolls - Skyrim - Special Edition",
-  "documents_path": "C:/Users/jared/Documents/My Games/Skyrim Special Edition"
+  "documents_path": "C:/Users/jared/Documents/My Games/Skyrim Special Edition",
+  "exclusions": [
+    "desktop.ini",
+    "Fallout4.ini",
+    "Fallout4Prefs.ini",
+    "Oblivion.ini"
+  ]
 }
