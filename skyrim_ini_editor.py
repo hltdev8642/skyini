@@ -425,7 +425,10 @@ class SkyrimINIEditor:
         self.file_tree.configure(yscrollcommand=file_scrollbar.set)
         
         self.file_tree.bind('<<TreeviewSelect>>', self.on_file_select)
-        
+        self.file_tree.bind('<MouseWheel>', self._on_file_tree_mousewheel)
+        self.file_tree.bind('<Button-4>', self._on_file_tree_mousewheel)
+        self.file_tree.bind('<Button-5>', self._on_file_tree_mousewheel)
+
         # Right panel - Property editor
         right_panel = ttk.Frame(main_container)
         main_container.add(right_panel, weight=3)
@@ -475,6 +478,9 @@ class SkyrimINIEditor:
         
         self.editor_content.bind('<Configure>', self.on_editor_configure)
         self.editor_canvas.bind('<Configure>', self.on_canvas_configure)
+        self.editor_canvas.bind('<MouseWheel>', self._on_canvas_mousewheel)
+        self.editor_canvas.bind('<Button-4>', self._on_canvas_mousewheel)
+        self.editor_canvas.bind('<Button-5>', self._on_canvas_mousewheel)
         
         # Raw text editor (hidden unless raw view enabled)
         self.raw_frame = ttk.Frame(editor_frame)
@@ -486,6 +492,9 @@ class SkyrimINIEditor:
             command=self.raw_text.yview
         )
         self.raw_text.configure(yscrollcommand=self.raw_scrollbar.set)
+        self.raw_text.bind('<MouseWheel>', self._on_raw_text_mousewheel)
+        self.raw_text.bind('<Button-4>', self._on_raw_text_mousewheel)
+        self.raw_text.bind('<Button-5>', self._on_raw_text_mousewheel)
         self.raw_text.pack(side='left', fill='both', expand=True)
         self.raw_scrollbar.pack(side='right', fill='y')
         
@@ -505,7 +514,43 @@ class SkyrimINIEditor:
     def on_canvas_configure(self, event) -> None:
         """Update content width when canvas is resized."""
         self.editor_canvas.itemconfig(self.editor_window, width=event.width)
-    
+
+    def _on_file_tree_mousewheel(self, event) -> str:
+        """Scroll file tree with mouse wheel."""
+        delta = 0
+        if event.num == 4:
+            delta = -1
+        elif event.num == 5:
+            delta = 1
+        else:
+            delta = -1 * (event.delta // 120)
+        self.file_tree.yview_scroll(delta, 'units')
+        return 'break'
+
+    def _on_canvas_mousewheel(self, event) -> str:
+        """Scroll property editor canvas with mouse wheel."""
+        delta = 0
+        if event.num == 4:
+            delta = -1
+        elif event.num == 5:
+            delta = 1
+        else:
+            delta = -1 * (event.delta // 120)
+        self.editor_canvas.yview_scroll(delta, 'units')
+        return 'break'
+
+    def _on_raw_text_mousewheel(self, event) -> str:
+        """Scroll raw text view with mouse wheel."""
+        delta = 0
+        if event.num == 4:
+            delta = -1
+        elif event.num == 5:
+            delta = 1
+        else:
+            delta = -1 * (event.delta // 120)
+        self.raw_text.yview_scroll(delta, 'units')
+        return 'break'
+
     def _load_raw_text(self) -> None:
         """Load the raw INI text into the editor and apply syntax highlighting."""
         if not self.current_file:

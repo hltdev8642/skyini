@@ -28,37 +28,91 @@ A comprehensive, production-quality GUI application for editing Skyrim configura
 - **Configuration Persistence**: Automatically saves and loads path configuration
 - **No Crashes**: Comprehensive exception handling throughout the application
 
-## Installation
+## Installation & Running
 
-### Requirements
+### 🚀 Option 1: Windows Standalone EXE (Easiest)
+
+Simply **double-click** `dist/skyrim_ini_editor.exe` to launch the application.
+
+- ✅ No Python installation required
+- ✅ All dependencies bundled (tkinter, TCL, standard libraries)
+- ✅ Portable across Windows machines
+- Size: ~8 MB
+
+### 📦 Option 2: Python Source Code
+
+#### Requirements
 - Python 3.6 or higher (tkinter included in standard Python distribution)
 
-### Optional (Modern UI)
-- For the modern-themed launcher, install `ttkbootstrap` (optional):
-  ```bash
-  pip install ttkbootstrap
-  ```
+#### Run the application:
+```bash
+python skyrim_ini_editor.py
+```
+
+For a modern-themed UI (optional):
+```bash
+python skyrim_ini_editor_modern.py
+```
+
+#### Optional (Modern UI Theme)
+Install `ttkbootstrap` for modern themes:
+```bash
+pip install ttkbootstrap
+```
 
 > ⚠️ **Python 3.15+ compatibility note:**
 > `ttkbootstrap` depends on `Pillow`, and prebuilt Pillow wheels are not yet available for Python 3.15.
-> If you are using Python 3.15, the install may fail due to missing zlib build dependencies.
+> If you are using Python 3.15, the installer may fail due to missing zlib build dependencies.
 >
 > **Workarounds:**
 > - Use Python 3.13/3.14 instead (recommended)
-> - Or keep using the classic UI (`skyrim_ini_editor.py`) or the modern launcher without `ttkbootstrap` (it will fall back to the default ttk theme).
+> - Or use the standard UI (`skyrim_ini_editor.py`) or modern launcher without `ttkbootstrap` (falls back to default ttk theme)
 
-The application still works without `ttkbootstrap`; `skyrim_ini_editor_modern.py` will simply use the default ttk theme instead.
+### 🔨 Option 3: Rebuild the EXE
 
-### Quick Start
+To rebuild the Windows executable:
 
-1. **Save the file**: The application is provided as a single file: `skyrim_ini_editor.py`
+**PowerShell:**
+```powershell
+.\build_exe.ps1
+```
 
-2. **Run the application**:
-   ```bash
-   python skyrim_ini_editor.py
+**CMD/Batch:**
+```cmd
+build_exe.bat
+```
+
+**Requirements:**
+- Python 3.13+ (other versions may require adjustments)
+- Nuitka compiler:
+  ```bash
+  pip install nuitka
+  ```
+
+---
+
+## Building a Standalone EXE (Windows)
+
+If you want a distributable `.exe` that runs without requiring Python:
+
+1. Install **Nuitka** (requires a working MSVC build toolchain):
+   ```powershell
+   python -m pip install nuitka
    ```
 
-   For a more modern-styled UI (uses ttk themes and optional `ttkbootstrap` if installed):
+2. Run the build script:
+   - PowerShell:
+     ```powershell
+     .\build_exe.ps1
+     ```
+   - CMD:
+     ```cmd
+     build_exe.bat
+     ```
+
+3. The resulting executable will be created in `dist\skyrim_ini_editor.exe`.
+
+> Note: This build uses Nuitka’s onefile mode and downloads Dependency Walker automatically.
    ```bash
    python skyrim_ini_editor_modern.py
    ```
